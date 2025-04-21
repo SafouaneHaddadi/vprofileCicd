@@ -1,0 +1,134 @@
+def COLOR_MAP = [
+    'SUCCESS': 'good', //good dans slack signifie la couleur vert
+    'FAILURE': 'danger,'
+]
+
+pipeline {
+    agent any
+
+    tools {
+        maven "MAVEN3.9.9"
+        jdk "JDK17" //le nom qu'on a donné dans la section 'Tools' de Jenkins
+    }
+
+    environment {
+        SNAP_REPO       = 'vprofile-snapshot'
+        NEXUS_USER      = 'admin'
+        NEXUS_PASS      = 'admin123'
+        RELEASE_REPO    = 'vprofile-release'
+        CENTRAL_REPO    = 'vpro-maven-central'
+        NEXUSIP         = '172.31.43.144' //ip privée de l'instance EC2 Nexus
+        NEXUSPORT       = '8081'
+        NEXUS_GRP_REPO  = 'vpro-maven-group'
+        NEXUS_LOGIN     = 'nexuslogin' //NEXUS_LOGIN correspond à la var dans le fichier xml et 'nexuslogin' cest ce qu'on a indiqué dans les credentials sur Jenkins
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                sh 'mvn -s settings.xml -DskipTests install' //on skip le test d'unité. Et dans les settings.xml on indique que qd on lance la cmd maven, elle doit DL les dependances àpd Nexus   
+            }
+            post {
+                success {
+                    echo "Now archiving..."
+                    archiveArtifacts artifacts: "**/*.war" //on archive tout ce qui se termine par .war
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'mvn -s settings.xml test' //generera un report
+            }
+        }
+
+        stage('Checkout Analysis') {
+            steps {
+                sh 'mvn -s settings.xml checkstyle:checkstyle' //generera un report au format xml mais ces 2 rapports ne sont pas lisible par l'homme, on a donc besoin d'un outil capable de stocker ces données, de les analyser et de les présenter dans un format lisible
+            }
+        }
+
+        stage("Sonar Code Analysis") { // Étape du pipeline pour l'analyse de code avec SonarQube
+            environment {
+                scannerHome = tool 'sonar6.2' // Définit le chemin de l'outil sonar-scanner (version 6.2 ici)
+            }
+            steps {
+                withSonarQubeEnv('sonarserver') { // Utilise la configuration SonarQube nommée 'sonarserver' sur Jenkins (ou : tool "${SONARSCANNER}" )
+                    sh '''${scannerHome}/bin/sonar-scanner \ // Lance le scanner Sonar avec les paramètres ci-dessous
+                        -Dsonar.projectKey=vprofile \ // Clé unique du projet dans SonarQube
+                        -Dsonar.projectName=vprofile \ // Nom affiché du projet
+                        -Dsonar.projectVersion=1.0 \ // Version du projet
+                        -Dsonar.sources=src/ \ // Répertoire contenant le code source à analyser
+                        -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \ // Répertoire des fichiers compilés pour l’analyse Java
+                        -Dsonar.junit.reportsPath=target/surefire-reports/ \ // Chemin des rapports de tests unitaires JUnit
+                        -Dsonar.jacoco.reportsPath=target/jacoco.exec \ // Fichier de couverture de code généré par Jacoco
+                        -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml''' // Fichier de résultats Checkstyle (vérification de style de code)
+                }
+                //Voir documentation 'sonar scanner for jenkins"
+            }
+        }
+
+        stage("Quality gate") {
+            /* Le webhook permet à SonarQube de prévenir Jenkins une fois que l’analyse est terminée.
+            Sans ce webhook, Jenkins attendrait indéfiniment (ou jusqu'au timeout), car il n'aurait aucun moyen de savoir que SonarQube a fini l’analyse */  
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    // Attend le résultat du quality gate de SonarQube, avec un timeout d'une heure
+                    // Si la qualité ne passe pas, le pipeline est automatiquement arrêté
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        // Définition d'une étape dans le pipeline Jenkins appelée "UploadArtifact"
+        stage("UploadArtifact") {
+    
+            steps {
+                // Utilisation du plugin nexusArtifactUploader pour uploader un artefact vers Nexus
+                nexusArtifactUploader(
+                    nexusVersion: 'nexus3',  // Spécifie la version de Nexus utilisée (ici Nexus 3)
+                    protocol: 'http',        // Protocole de communication utilisé avec Nexus
+                    nexusUrl: "${NEXUS_IP}",   // Adresse IP ou URL de Nexus, stockée dans une variable d’environnement
+                    groupId: 'QA',           // Groupe Maven sous lequel l’artefact sera publié
+                    // Version de l’artefact composée de l’ID du build + timestamp (timestamp fourni par un plugin Jenkins)
+                    version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
+                    repository: "${RELEASE_REPO}", // Nom du repository Nexus où l’artefact sera uploadé (stocké dans une variable d’env)
+                    credentialsId: "${NEXUS_LOGIN}:${NEXUS_PORT}", // Identifiants Jenkins pour se connecter à Nexus (ID des credentials configurés dans Jenkins)
+                    artifacts: [ // Liste des artefacts à uploader
+                        [
+                            artifactId: 'vproapp',           // Nom de l’artefact (doit correspondre à l’ID défini dans le pom.xml s'il y a lieu)
+                            classifier: '',                 // Classificateur (peut rester vide si non utilisé)
+                            file: 'target/vprofile-v2.war', // Chemin vers le fichier à uploader (généré lors du build Maven par exemple)
+                            type: 'war'                     // Type de l’artefact (ici une archive WAR)
+                        ]
+                    ]
+                )
+            }
+        }
+
+    }
+  // Bloc 'post' dans un pipeline Jenkins : actions à exécuter après que le job ait tourné (réussi ou échoué)
+post {
+    
+    // 'always' signifie que ce bloc sera exécuté à chaque fois, que le build réussisse ou non
+    always {
+
+        // Affiche un message dans la console Jenkins pour indiquer que la notification Slack va être envoyée
+        echo "Slack notifications"
+
+        // Envoie une notification Slack
+        slackSend(
+            // Canal Slack où le message sera envoyé. Ici, c’est juste un # en placeholder (à remplacer par ex: '#dev')
+            channel: '#',
+
+            // Couleur du message (vert pour succès, rouge pour échec, etc.) en fonction du résultat du build
+            color: COLOR_MAP[currentBuild.currentResult],
+
+            // Message affiché dans Slack : indique le résultat du build, le nom du job, le numéro du build,
+            // et un lien vers plus d'infos (l'URL du build Jenkins)
+            message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}"
+        )
+    }
+}
+
+}

@@ -1,36 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Déclaration XML : version et encodage -->
+
 <settings xmlns="http://maven.apache.org/SETTINGS/1.1.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.1.0 http://maven.apache.org/xsd/settings-1.1.0.xsd">
+  <!-- Élément racine du fichier settings.xml de Maven -->
+  <!-- Utilisé pour configurer des paramètres personnalisés (comme les serveurs, les miroirs, les proxies, etc.) -->
 
   <servers>
+    <!-- Section qui contient la configuration des serveurs (repos privés) avec authentification -->
+
     <server>
+      <!-- Serveur pour déployer ou récupérer les artefacts SNAPSHOT -->
       <id>${SNAP_REPO}</id>
       <username>${NEXUS_USER}</username>
       <password>${NEXUS_PASS}</password>
     </server>
+
     <server>
+      <!-- Serveur pour les artefacts RELEASE -->
       <id>${RELEASE_REPO}</id>
       <username>${NEXUS_USER}</username>
       <password>${NEXUS_PASS}</password>
     </server>
-        <server>
-        <id>${CENTRAL_REPO}</id>
+
+    <server>
+      <!-- Serveur pour un dépôt central personnalisé -->
+      <id>${CENTRAL_REPO}</id>
       <username>${NEXUS_USER}</username>
       <password>${NEXUS_PASS}</password>
     </server>
+
     <server>
-        <id>${NEXUS_GRP_REPO}</id>
+      <!-- Serveur pour un dépôt de groupe (groupe de plusieurs dépôts Nexus) -->
+      <id>${NEXUS_GRP_REPO}</id>
       <username>${NEXUS_USER}</username>
       <password>${NEXUS_PASS}</password>
     </server>
   </servers>
 
   <mirrors>
+    <!-- Section des miroirs -->
+    <!-- Un miroir est un dépôt "intermédiaire" ou "de substitution" utilisé à la place des dépôts distants publics. -->
+    <!-- Il est souvent hébergé en interne (comme Nexus ou Artifactory) pour :
+         - gagner en performance (accès local)
+         - contrôler les dépendances utilisées
+         - fonctionner sans accès Internet -->
+
     <mirror>
-      <id>${CENTRAL_REPO}</id>
-      <name>${CENTRAL_REPO}</name>
+      <!-- Ce miroir remplace tous les autres dépôts (grâce à <mirrorOf>*</mirrorOf>) -->
+      <id>${CENTRAL_REPO}</id> <!-- Identifiant du miroir -->
+      <name>${CENTRAL_REPO}</name> <!-- Nom lisible du miroir -->
+
+      <!-- URL du miroir (généralement vers un serveur Nexus ou Artifactory) -->
+      <!-- Ici, on redirige toutes les requêtes Maven vers un dépôt de groupe Nexus -->
       <url>http://${NEXUSIP}:${NEXUSPORT}/repository/${NEXUS_GRP_REPO}/</url>
+
+      <!-- "*" signifie que ce miroir va s'appliquer à tous les dépôts Maven (central, jcenter, etc.) -->
       <mirrorOf>*</mirrorOf>
     </mirror>
   </mirrors>
