@@ -98,7 +98,7 @@ stage("Quality gate") {
                 nexusArtifactUploader(
                     nexusVersion: 'nexus3',  // Spécifie la version de Nexus utilisée (ici Nexus 3)
                     protocol: 'http',        // Protocole de communication utilisé avec Nexus
-                    nexusUrl: "${NEXUS_IP}",   // Adresse IP ou URL de Nexus, stockée dans une variable d’environnement
+                    nexusUrl: "${NEXUS_IP}:${NEXUS_PORT}",   // Adresse IP ou URL de Nexus, stockée dans une variable d’environnement
                     groupId: 'QA',           // Groupe Maven sous lequel l’artefact sera publié
                     // Version de l’artefact composée de l’ID du build + timestamp (timestamp fourni par un plugin Jenkins)
                     version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
