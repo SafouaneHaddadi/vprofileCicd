@@ -11,18 +11,18 @@ pipeline {
         jdk "JDK17" //le nom qu'on a donné dans la section 'Tools' de Jenkins
     }
 
-    environment {
+   environment {
         SNAP_REPO       = 'vprofile-snapshot'
         NEXUS_USER      = 'admin'
         NEXUS_PASS      = 'admin123'
         RELEASE_REPO    = 'vprofile-release'
         CENTRAL_REPO    = 'vpro-maven-central'
-        NEXUSIP         = '172.31.20.96' //ip privée de l'instance EC2 Nexus
-        NEXUSPORT       = '8081'
+        NEXUS_IP         = '172.31.20.96' //ip privée de l'instance EC2 Nexus
+        NEXUS_PORT       = '8081'
         NEXUS_GRP_REPO  = 'vpro-maven-group'
         NEXUS_LOGIN     = 'nexuslogin' //NEXUS_LOGIN correspond à la var dans le fichier xml et 'nexuslogin' cest ce qu'on a indiqué dans les credentials sur Jenkins
         registryCredential = 'ecr:us-east-1:awscreds' //awscreds est le credential ajouté sur jenkins
-        appRegistry = '039612873733.dkr.ecr.us-east-1.amazonaws.com/vprofileappimg' //on c/c l'url de notre repository ECR sur aws (syntaxe : [Account_Name]/[Image_name]) c'est le nom de notre image
+        appRegistry = '039612873733.dkr.ecr.us-east-1.amazonaws.com/vprofileappimage' //on c/c l'url de notre repository ECR sur aws (syntaxe : [Account_Name]/[Image_name]) c'est le nom de notre image
         vprofileRegistry = 'hhttps://039612873733.dkr.ecr.us-east-1.amazonaws.com' //ici on c/c l'url
         cluster = "vprostaging" //cluster représente le nom du cluster ECS où nos conteneurs sont déployés.
         service = "vproappprodsvc" //le service dans un cluster est la tache qui executera notre conteneur; qui recuperera l'image de ECR et executera le conteneur.
@@ -55,27 +55,30 @@ pipeline {
             }
         }
 
-        stage("Sonar Code Analysis") { // Étape du pipeline pour l'analyse de code avec SonarQube
-            environment {
-                scannerHome = tool 'sonar6.2' // Définit le chemin de l'outil sonar-scanner (version 6.2 ici)
-            }
-            steps {
-                withSonarQubeEnv('sonarserver') { // Utilise la configuration SonarQube nommée 'sonarserver' sur Jenkins (ou : tool "${SONARSCANNER}" )
-                    sh '''${scannerHome}/bin/sonar-scanner \ // Lance le scanner Sonar avec les paramètres ci-dessous
-                        -Dsonar.projectKey=vprofile \ // Clé unique du projet dans SonarQube
-                        -Dsonar.projectName=vprofile \ // Nom affiché du projet
-                        -Dsonar.projectVersion=1.0 \ // Version du projet
-                        -Dsonar.sources=src/ \ // Répertoire contenant le code source à analyser
-                        -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \ // Répertoire des fichiers compilés pour l’analyse Java
-                        -Dsonar.junit.reportsPath=target/surefire-reports/ \ // Chemin des rapports de tests unitaires JUnit
-                        -Dsonar.jacoco.reportsPath=target/jacoco.exec \ // Fichier de couverture de code généré par Jacoco
-                        -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml''' // Fichier de résultats Checkstyle (vérification de style de code)
-                }
-                //Voir documentation 'sonar scanner for jenkins"
-            }
+         stage("Sonar Code Analysis") {
+    environment {
+        scannerHome = tool 'sonar6.2' // Nom de l'outil sonar-scanner configuré dans Jenkins (Manage Jenkins > Global Tool Configuration)
+    }
+    steps {
+        withSonarQubeEnv('sonarserver') { // Nom du serveur SonarQube configuré dans Jenkins (Manage Jenkins > Configure System)
+            sh """
+                ${scannerHome}/bin/sonar-scanner \
+                -Dsonar.projectKey=vprofile \
+                -Dsonar.projectName=vprofile \
+                -Dsonar.projectVersion=1.0 \
+                -Dsonar.sources=src/ \
+                -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
+                -Dsonar.junit.reportsPath=target/surefire-reports/ \
+                -Dsonar.jacoco.reportsPath=target/jacoco.exec \
+                -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml
+            """
         }
 
-        stage("Quality gate") {
+
+    }
+}
+
+stage("Quality gate") {
             /* Le webhook permet à SonarQube de prévenir Jenkins une fois que l’analyse est terminée.
             Sans ce webhook, Jenkins attendrait indéfiniment (ou jusqu'au timeout), car il n'aurait aucun moyen de savoir que SonarQube a fini l’analyse */  
             steps {
@@ -87,7 +90,7 @@ pipeline {
             }
         }
 
-        // Définition d'une étape dans le pipeline Jenkins appelée "UploadArtifact"
+         // Définition d'une étape dans le pipeline Jenkins appelée "UploadArtifact"
         stage("UploadArtifact") {
     
             steps {
@@ -95,12 +98,12 @@ pipeline {
                 nexusArtifactUploader(
                     nexusVersion: 'nexus3',  // Spécifie la version de Nexus utilisée (ici Nexus 3)
                     protocol: 'http',        // Protocole de communication utilisé avec Nexus
-                    nexusUrl: "${NEXUS_IP}",   // Adresse IP ou URL de Nexus, stockée dans une variable d’environnement
+                    nexusUrl: "${NEXUS_IP}:${NEXUS_PORT}",   // Adresse IP ou URL de Nexus, stockée dans une variable d’environnement
                     groupId: 'QA',           // Groupe Maven sous lequel l’artefact sera publié
                     // Version de l’artefact composée de l’ID du build + timestamp (timestamp fourni par un plugin Jenkins)
                     version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
                     repository: "${RELEASE_REPO}", // Nom du repository Nexus où l’artefact sera uploadé (stocké dans une variable d’env)
-                    credentialsId: "${NEXUS_LOGIN}:${NEXUS_PORT}", // Identifiants Jenkins pour se connecter à Nexus (ID des credentials configurés dans Jenkins)
+                    credentialsId: "${NEXUS_LOGIN}", // Identifiants Jenkins pour se connecter à Nexus (ID des credentials configurés dans Jenkins)
                     artifacts: [ // Liste des artefacts à uploader
                         [
                             artifactId: 'vproapp',           // Nom de l’artefact (doit correspondre à l’ID défini dans le pom.xml s'il y a lieu)
@@ -140,25 +143,7 @@ pipeline {
           }
         }
 
-        //Déploiement de l'image Docker sur ECS (plateforme de gestion de conteneurs)
-        stage('Deploy to ECS staging') {
-        steps {
-            //withAWS est une fonction fournie par le plugin AWS Steps qui permet d'utiliser des info d'identif° AWS spécifiées (dans ce cas, awscreds) pour authentifier les cmd AWS qui suivent.
-            withAWS(credentials: 'awscreds', region: 'us-east-1') { //region: 'us-east-1' spécifie la région AWS où se trouve notre cluster ECS
-            
-            //aws ecs update-service : commande AWS CLI qui met à jour le service spécifié.
-            //--cluster ${cluster} : indique à AWS quel cluster utiliser, en utilisant la variable définie précédemment.
-           // --service ${service} : spécifie le service à mettre à jour.
-           //--force-new-deployment : force le service à redémarrer les tâches avec la nouvelle image Docker
-            sh 'aws ecs update-service --cluster ${cluster} --service ${service} --force-new-deployment'
-               }
-        }
-    }
-    /*
-    ==> Cette étape dans notre pipeline Jenkins s'assure que, chaque fois qu'une nouvelle image Docker est disponible (généralement après le processus de construction et de test), 
-    le service ECS est mis à jour pour utiliser cette nouvelle image. 
-    Cela permet d'automatiser le processus de déploiement, garantissant que les dernières modifications de votre application sont rapidement mises en production
-    */
+       
 
     }
   // Bloc 'post' dans un pipeline Jenkins : actions à exécuter après que le job ait tourné (réussi ou échoué)
