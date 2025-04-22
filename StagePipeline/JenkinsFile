@@ -116,7 +116,7 @@ stage("Quality gate") {
             }
         }
 
-        stages ("Build app image") {
+        stage ("Build app image") {
             steps {
                 script {
                      //docker.build(...) : Cette fonction est utilisée pour construire une image Docker. Elle prend deux arguments :
