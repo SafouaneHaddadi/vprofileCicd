@@ -7,7 +7,7 @@ pipeline {
     agent any
 
     tools {
-        maven "MAVEN3.9.9"
+        maven "MAVEN3.9"
         jdk "JDK17" //le nom qu'on a donné dans la section 'Tools' de Jenkins
     }
 

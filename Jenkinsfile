@@ -43,7 +43,18 @@ pipeline {
             }
         }
 
-       
+        stage('Test') {
+            steps {
+                sh 'mvn -s settings.xml test' //generera un report
+            }
+        }
+
+        stage('Checkout Analysis') {
+            steps {
+                sh 'mvn -s settings.xml checkstyle:checkstyle' //generera un report au format xml mais ces 2 rapports ne sont pas lisible par l'homme, on a donc besoin d'un outil capable de stocker ces données, de les analyser et de les présenter dans un format lisible
+            }
+        }       
+
     }
   // Bloc 'post' dans un pipeline Jenkins : actions à exécuter après que le job ait tourné (réussi ou échoué)
 post {
