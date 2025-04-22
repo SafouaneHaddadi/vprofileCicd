@@ -74,9 +74,21 @@ pipeline {
             """
         }
 
-        
+
     }
 }
+
+stage("Quality gate") {
+            /* Le webhook permet à SonarQube de prévenir Jenkins une fois que l’analyse est terminée.
+            Sans ce webhook, Jenkins attendrait indéfiniment (ou jusqu'au timeout), car il n'aurait aucun moyen de savoir que SonarQube a fini l’analyse */  
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    // Attend le résultat du quality gate de SonarQube, avec un timeout d'une heure
+                    // Si la qualité ne passe pas, le pipeline est automatiquement arrêté
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
       
 
     }
