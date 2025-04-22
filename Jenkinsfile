@@ -89,6 +89,32 @@ stage("Quality gate") {
                 }
             }
         }
+
+         // Définition d'une étape dans le pipeline Jenkins appelée "UploadArtifact"
+        stage("UploadArtifact") {
+    
+            steps {
+                // Utilisation du plugin nexusArtifactUploader pour uploader un artefact vers Nexus
+                nexusArtifactUploader(
+                    nexusVersion: 'nexus3',  // Spécifie la version de Nexus utilisée (ici Nexus 3)
+                    protocol: 'http',        // Protocole de communication utilisé avec Nexus
+                    nexusUrl: "${NEXUS_IP}",   // Adresse IP ou URL de Nexus, stockée dans une variable d’environnement
+                    groupId: 'QA',           // Groupe Maven sous lequel l’artefact sera publié
+                    // Version de l’artefact composée de l’ID du build + timestamp (timestamp fourni par un plugin Jenkins)
+                    version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
+                    repository: "${RELEASE_REPO}", // Nom du repository Nexus où l’artefact sera uploadé (stocké dans une variable d’env)
+                    credentialsId: "${NEXUS_LOGIN}:${NEXUS_PORT}", // Identifiants Jenkins pour se connecter à Nexus (ID des credentials configurés dans Jenkins)
+                    artifacts: [ // Liste des artefacts à uploader
+                        [
+                            artifactId: 'vproapp',           // Nom de l’artefact (doit correspondre à l’ID défini dans le pom.xml s'il y a lieu)
+                            classifier: '',                 // Classificateur (peut rester vide si non utilisé)
+                            file: 'target/vprofile-v2.war', // Chemin vers le fichier à uploader (généré lors du build Maven par exemple)
+                            type: 'war'                     // Type de l’artefact (ici une archive WAR)
+                        ]
+                    ]
+                )
+            }
+        }
       
 
     }
