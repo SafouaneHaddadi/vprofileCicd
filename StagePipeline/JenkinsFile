@@ -21,6 +21,9 @@ pipeline {
         NEXUSPORT       = '8081'
         NEXUS_GRP_REPO  = 'vpro-maven-group'
         NEXUS_LOGIN     = 'nexuslogin' //NEXUS_LOGIN correspond à la var dans le fichier xml et 'nexuslogin' cest ce qu'on a indiqué dans les credentials sur Jenkins
+        registryCredential = 'ecr:us-east-1:awscreds' //awscreds est le credential ajouté sur jenkins
+        appRegistry = '039612873733.dkr.ecr.us-east-1.amazonaws.com/vprofileappimg' //on c/c l'url de notre repository ECR sur aws (syntaxe : [Account_Name]/[Image_name]) c'est le nom de notre image
+        vprofileRegistry = 'hhttps://039612873733.dkr.ecr.us-east-1.amazonaws.com' //ici on c/c l'url
     }
 
     stages {
@@ -104,6 +107,33 @@ pipeline {
                     ]
                 )
             }
+        }
+
+        stages ("Build app image") {
+            steps {
+                script {
+                     //docker.build(...) : Cette fonction est utilisée pour construire une image Docker. Elle prend deux arguments :
+                    //-appRegistry + ":$BUILD_NUMBER" : spécifie le nom et la balise de l'image Docker  -"$BUILD_NUMBER" est un numéro de build unique généré par Jenkins pour chaque exécution du pipeline. Cela garantit que chaque image construite a une balise unique.
+                    //Le 2e argument "./Docker-files/app/multistage/" indique le chemin vers le Dockerfile et le contexte de construction. Cela signifie que Jenkins va chercher le Dockerfile dans ce répertoire pour construire l'image.
+                    dockerImage = docker.build( appRegistry+ ":$BUILD_NUMBER", "./Docker-files/app/multistage/")
+                }
+            }
+        }
+
+         //On va télécharger cette image Docker
+        stage('Upload App Image') { //Sur Amazon ECR. L'image docker sera l'artefact
+          steps{
+            script {
+                //docker.withRegistry(...) : Cette méthode permet de se connecter à un registre Docker (dans ce cas, Amazon ECR) en utilisant les informations d'identification fournies
+                  docker.withRegistry( vprofileRegistry, registryCredential ) {
+                    
+                  dockerImage.push("$BUILD_NUMBER") //Cette ligne pousse l'image Docker avec la balise correspondant au numéro de build de Jenkins vers le registre ECR. Cela permet de versionner les images en fonction des builds. (donc haque fois que vous exécutez le pipeline, une nouvelle image est créée et poussée avec un numéro de version unique)
+                  dockerImage.push('latest') //on pousse également l'image Docker avec la balise par défaut 'latest'. Cela signifie que la dernière version de l'image sera toujours accessible sous cette balise dans le registre, ce qui facilite le déploiement de la dernière version de l'app° 
+                  /*Lors de la recup° d'une image, si on ne mentionne aucune balise par défaut, la balise la plus récente sera utilisé
+                   C'est pratique pour les déploiements, car les systèmes qui récup° l'image peuvent simplement demander l'image latest pour obtenir la version la plus récente sans avoir à spécifier un numéro de build.*/
+              }
+            }
+          }
         }
 
     }
