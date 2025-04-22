@@ -17,8 +17,8 @@ pipeline {
         NEXUS_PASS      = 'admin123'
         RELEASE_REPO    = 'vprofile-release'
         CENTRAL_REPO    = 'vpro-maven-central'
-        NEXUSIP         = '172.31.20.96' //ip privée de l'instance EC2 Nexus
-        NEXUSPORT       = '8081'
+        NEXUS_IP         = '172.31.20.96' //ip privée de l'instance EC2 Nexus
+        NEXUS_PORT       = '8081'
         NEXUS_GRP_REPO  = 'vpro-maven-group'
         NEXUS_LOGIN     = 'nexuslogin' //NEXUS_LOGIN correspond à la var dans le fichier xml et 'nexuslogin' cest ce qu'on a indiqué dans les credentials sur Jenkins
         registryCredential = 'ecr:us-east-1:awscreds' //awscreds est le credential ajouté sur jenkins
