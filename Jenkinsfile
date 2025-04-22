@@ -103,7 +103,7 @@ stage("Quality gate") {
                     // Version de l’artefact composée de l’ID du build + timestamp (timestamp fourni par un plugin Jenkins)
                     version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
                     repository: "${RELEASE_REPO}", // Nom du repository Nexus où l’artefact sera uploadé (stocké dans une variable d’env)
-                    credentialsId: "${NEXUS_LOGIN}:${NEXUS_PORT}", // Identifiants Jenkins pour se connecter à Nexus (ID des credentials configurés dans Jenkins)
+                    credentialsId: "${NEXUS_LOGIN}", // Identifiants Jenkins pour se connecter à Nexus (ID des credentials configurés dans Jenkins)
                     artifacts: [ // Liste des artefacts à uploader
                         [
                             artifactId: 'vproapp',           // Nom de l’artefact (doit correspondre à l’ID défini dans le pom.xml s'il y a lieu)
