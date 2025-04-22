@@ -55,25 +55,27 @@ pipeline {
             }
         }
 
-         stage("Sonar Code Analysis") { // Étape du pipeline pour l'analyse de code avec SonarQube
-            environment {
-                scannerHome = tool 'sonar6.2' // Définit le chemin de l'outil sonar-scanner (version 6.2 ici)
-            }
-            steps {
-                withSonarQubeEnv('sonarserver') { // Utilise la configuration SonarQube nommée 'sonarserver' sur Jenkins (ou : tool "${SONARSCANNER}" )
-                    sh '''${scannerHome}/bin/sonar-scanner \ 
-                        -Dsonar.projectKey=vprofile \ 
-                        -Dsonar.projectName=vprofile \ 
-                        -Dsonar.projectVersion=1.0 \ 
-                        -Dsonar.sources=src/ \ 
-                        -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \ 
-                        -Dsonar.junit.reportsPath=target/surefire-reports/ \ 
-                        -Dsonar.jacoco.reportsPath=target/jacoco.exec \ 
-                        -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml''' // Fichier de résultats Checkstyle (vérification de style de code)
-                }
-                //Voir documentation 'sonar scanner for jenkins"
-            }
-        }       
+         stage("Sonar Code Analysis") {
+    environment {
+        scannerHome = tool 'sonar6.2' // Nom de l'outil sonar-scanner configuré dans Jenkins (Manage Jenkins > Global Tool Configuration)
+    }
+    steps {
+        withSonarQubeEnv('sonarserver') { // Nom du serveur SonarQube configuré dans Jenkins (Manage Jenkins > Configure System)
+            sh """
+                ${scannerHome}/bin/sonar-scanner \
+                -Dsonar.projectKey=vprofile \
+                -Dsonar.projectName=vprofile \
+                -Dsonar.projectVersion=1.0 \
+                -Dsonar.sources=src/ \
+                -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
+                -Dsonar.junit.reportsPath=target/surefire-reports/ \
+                -Dsonar.jacoco.reportsPath=target/jacoco.exec \
+                -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml
+            """
+        }
+    }
+}
+      
 
     }
   // Bloc 'post' dans un pipeline Jenkins : actions à exécuter après que le job ait tourné (réussi ou échoué)
