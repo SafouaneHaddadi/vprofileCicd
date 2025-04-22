@@ -53,6 +53,26 @@ pipeline {
             steps {
                 sh 'mvn -s settings.xml checkstyle:checkstyle' //generera un report au format xml mais ces 2 rapports ne sont pas lisible par l'homme, on a donc besoin d'un outil capable de stocker ces données, de les analyser et de les présenter dans un format lisible
             }
+        }
+
+         stage("Sonar Code Analysis") { // Étape du pipeline pour l'analyse de code avec SonarQube
+            environment {
+                scannerHome = tool 'sonar6.2' // Définit le chemin de l'outil sonar-scanner (version 6.2 ici)
+            }
+            steps {
+                withSonarQubeEnv('sonarserver') { // Utilise la configuration SonarQube nommée 'sonarserver' sur Jenkins (ou : tool "${SONARSCANNER}" )
+                    sh '''${scannerHome}/bin/sonar-scanner \ 
+                        -Dsonar.projectKey=vprofile \ 
+                        -Dsonar.projectName=vprofile \ 
+                        -Dsonar.projectVersion=1.0 \ 
+                        -Dsonar.sources=src/ \ 
+                        -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \ 
+                        -Dsonar.junit.reportsPath=target/surefire-reports/ \ 
+                        -Dsonar.jacoco.reportsPath=target/jacoco.exec \ 
+                        -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml''' // Fichier de résultats Checkstyle (vérification de style de code)
+                }
+                //Voir documentation 'sonar scanner for jenkins"
+            }
         }       
 
     }
