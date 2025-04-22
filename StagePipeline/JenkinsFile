@@ -17,13 +17,17 @@ pipeline {
         NEXUS_PASS      = 'admin123'
         RELEASE_REPO    = 'vprofile-release'
         CENTRAL_REPO    = 'vpro-maven-central'
-        NEXUSIP         = '172.31.43.144' //ip privée de l'instance EC2 Nexus
+        NEXUSIP         = '172.31.20.96' //ip privée de l'instance EC2 Nexus
         NEXUSPORT       = '8081'
         NEXUS_GRP_REPO  = 'vpro-maven-group'
         NEXUS_LOGIN     = 'nexuslogin' //NEXUS_LOGIN correspond à la var dans le fichier xml et 'nexuslogin' cest ce qu'on a indiqué dans les credentials sur Jenkins
         registryCredential = 'ecr:us-east-1:awscreds' //awscreds est le credential ajouté sur jenkins
         appRegistry = '039612873733.dkr.ecr.us-east-1.amazonaws.com/vprofileappimg' //on c/c l'url de notre repository ECR sur aws (syntaxe : [Account_Name]/[Image_name]) c'est le nom de notre image
         vprofileRegistry = 'hhttps://039612873733.dkr.ecr.us-east-1.amazonaws.com' //ici on c/c l'url
+        cluster = "vprostaging" //cluster représente le nom du cluster ECS où nos conteneurs sont déployés.
+        service = "vproappprodsvc" //le service dans un cluster est la tache qui executera notre conteneur; qui recuperera l'image de ECR et executera le conteneur.
+        /* En gros, Le service ECS déploie un ou plusieurs conteneurs à partir d'une définition de tâche. Une définition de tâche spécifie l'image Docker à utiliser, les ressources nécessaires (CPU, mémoire), 
+        les ports à exposer, et d'autres configurations. */
     }
 
     stages {
@@ -135,6 +139,26 @@ pipeline {
             }
           }
         }
+
+        //Déploiement de l'image Docker sur ECS (plateforme de gestion de conteneurs)
+        stage('Deploy to ECS staging') {
+        steps {
+            //withAWS est une fonction fournie par le plugin AWS Steps qui permet d'utiliser des info d'identif° AWS spécifiées (dans ce cas, awscreds) pour authentifier les cmd AWS qui suivent.
+            withAWS(credentials: 'awscreds', region: 'us-east-1') { //region: 'us-east-1' spécifie la région AWS où se trouve notre cluster ECS
+            
+            //aws ecs update-service : commande AWS CLI qui met à jour le service spécifié.
+            //--cluster ${cluster} : indique à AWS quel cluster utiliser, en utilisant la variable définie précédemment.
+           // --service ${service} : spécifie le service à mettre à jour.
+           //--force-new-deployment : force le service à redémarrer les tâches avec la nouvelle image Docker
+            sh 'aws ecs update-service --cluster ${cluster} --service ${service} --force-new-deployment'
+               }
+        }
+    }
+    /*
+    ==> Cette étape dans notre pipeline Jenkins s'assure que, chaque fois qu'une nouvelle image Docker est disponible (généralement après le processus de construction et de test), 
+    le service ECS est mis à jour pour utiliser cette nouvelle image. 
+    Cela permet d'automatiser le processus de déploiement, garantissant que les dernières modifications de votre application sont rapidement mises en production
+    */
 
     }
   // Bloc 'post' dans un pipeline Jenkins : actions à exécuter après que le job ait tourné (réussi ou échoué)
