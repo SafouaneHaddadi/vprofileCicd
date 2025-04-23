@@ -25,7 +25,7 @@ pipeline {
         appRegistry = '039612873733.dkr.ecr.us-east-1.amazonaws.com/vprofileappimage' //on c/c l'url de notre repository ECR sur aws (syntaxe : [Account_Name]/[Image_name]) c'est le nom de notre image
         vprofileRegistry = 'https://039612873733.dkr.ecr.us-east-1.amazonaws.com' //ici on c/c l'url
         cluster = "vprostaging" //cluster représente le nom du cluster ECS où nos conteneurs sont déployés.
-        service = "vproappprodsvc" //le service dans un cluster est la tache qui executera notre conteneur; qui recuperera l'image de ECR et executera le conteneur.
+        service = "vproappstagesvc" //le service dans un cluster est la tache qui executera notre conteneur; qui recuperera l'image de ECR et executera le conteneur.
         /* En gros, Le service ECS déploie un ou plusieurs conteneurs à partir d'une définition de tâche. Une définition de tâche spécifie l'image Docker à utiliser, les ressources nécessaires (CPU, mémoire), 
         les ports à exposer, et d'autres configurations. */
     }
