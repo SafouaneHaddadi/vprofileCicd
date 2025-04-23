@@ -143,7 +143,25 @@ stage("Quality gate") {
           }
         }
 
-       
+        //Déploiement de l'image Docker sur ECS (plateforme de gestion de conteneurs)
+        stage('Deploy to ECS staging') {
+        steps {
+            //withAWS est une fonction fournie par le plugin AWS Steps qui permet d'utiliser des info d'identif° AWS spécifiées (dans ce cas, awscreds) pour authentifier les cmd AWS qui suivent.
+            withAWS(credentials: 'awscreds', region: 'us-east-1') { //region: 'us-east-1' spécifie la région AWS où se trouve notre cluster ECS
+            
+            //aws ecs update-service : commande AWS CLI qui met à jour le service spécifié.
+            //--cluster ${cluster} : indique à AWS quel cluster utiliser, en utilisant la variable définie précédemment.
+           // --service ${service} : spécifie le service à mettre à jour.
+           //--force-new-deployment : force le service à redémarrer les tâches avec la nouvelle image Docker
+            sh 'aws ecs update-service --cluster ${cluster} --service ${service} --force-new-deployment'
+               }
+        }
+    }
+    /*
+    ==> Cette étape dans notre pipeline Jenkins s'assure que, chaque fois qu'une nouvelle image Docker est disponible (généralement après le processus de construction et de test), 
+    le service ECS est mis à jour pour utiliser cette nouvelle image. 
+    Cela permet d'automatiser le processus de déploiement, garantissant que les dernières modifications de votre application sont rapidement mises en production
+    */
 
     }
   // Bloc 'post' dans un pipeline Jenkins : actions à exécuter après que le job ait tourné (réussi ou échoué)
