@@ -54,7 +54,7 @@
 
       <!-- URL du miroir (généralement vers un serveur Nexus ou Artifactory) -->
       <!-- Ici, on redirige toutes les requêtes Maven vers un dépôt de groupe Nexus -->
-      <url>http://${NEXUSIP}:${NEXUSPORT}/repository/${NEXUS_GRP_REPO}/</url>
+      <url>http://${NEXUS_IP}:${NEXUS_PORT}/repository/${NEXUS_GRP_REPO}/</url>
 
       <!-- "*" signifie que ce miroir va s'appliquer à tous les dépôts Maven (central, jcenter, etc.) -->
       <mirrorOf>*</mirrorOf>
