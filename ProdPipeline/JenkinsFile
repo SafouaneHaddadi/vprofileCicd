@@ -15,7 +15,7 @@ pipeline {
         stage('Deploy to prod ECS') {
         steps {
             //withAWS est une fonction fournie par le plugin AWS Steps qui permet d'utiliser des info d'identif° AWS spécifiées (dans ce cas, awscreds) pour authentifier les cmd AWS qui suivent.
-            withAWS(credentials: 'awscreds', region: 'us-east-1') { //region: 'us-east-1' spécifie la région AWS où se trouve notre cluster ECS
+            withAWS(credentials: 'awscreds', region: 'us-west-1') { //region: 'us-east-1' spécifie la région AWS où se trouve notre cluster ECS
             
             sh 'aws ecs update-service --cluster ${cluster} --service ${service} --force-new-deployment'
                }
