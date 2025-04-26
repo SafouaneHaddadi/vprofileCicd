@@ -1,0 +1,50 @@
+#!/bin/bash
+
+
+#Ce fichier est un template Jinja2 utilisé dans Ansible pour générer dynamiquement un script d'init pour Tomcat
+
+### BEGIN INIT INFO
+# Provides: tomcat7
+# Required-Start: $network
+# Required-Stop: $network
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Start/Stop Tomcat server
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+
+start() {
+sh /usr/local/tomcat8/bin/startup.sh
+}
+
+stop() {
+sh /usr/local/tomcat8/bin/shutdown.sh
+}
+
+#ps -fe : Liste tous les processus en cours d'exécution
+#tr -s " " | cut -d" " -f2 : extrait le PID du processus Tomcat
+
+status() {
+pid=$(ps -fe | grep '/usr/local/tomcat8' | grep -v grep | tr -s " " | cut -d" " -f2)
+  if [ -n "$pid" ]; then
+    echo -e "\e[00;32mTomcat is running with pid: $pid\e[00m"
+  else
+    echo -e "\e[00;31mTomcat is not running\e[00m"
+  fi
+}
+
+
+#si l'argument est start, stop, ou status, le script exécute la fonction correspondante
+#si l'argument est restart, le script arrête Tomcat puis le redémarre
+#si c autre chose, on affiche un msg d erreur
+
+case $1 in
+start|stop|status) $1;;
+restart) stop; start;;
+*) echo "Run as $0 "; exit 1;;
+esac
+exit 0
+
+

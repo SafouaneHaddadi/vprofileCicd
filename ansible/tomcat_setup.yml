@@ -1,0 +1,180 @@
+- name: Common tool setup on all the servers
+  hosts: appsrvgrp
+  become: yes  # Élévation des privilèges root
+
+  vars:
+    tom_url: https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.37/bin/apache-tomcat-8.5.37.tar.gz
+
+  tasks:
+
+     # 2) Installation de JDK : 
+
+     
+    # Installer le JDK sur CentOS
+    - name: Install JDK on Centos 6/7
+      yum:
+        name: java-1.8.0-openjdk.x86_64
+        state: present
+      when: ansible_distribution == 'CentOS'
+
+    # Installer le JDK sur Ubuntu
+    - name: Install JDK on Ubuntu 14/15/16/18
+      apt:
+        name: openjdk-8-jdk
+        state: present
+        update_cache: yes
+      when: ansible_distribution == 'Ubuntu'
+
+
+      
+    # 3) Téléchargement de l'archive Tomcat : 
+
+
+    # Télécharger l'archive Tomcat depuis un url qu'on extrait dans un repertoire
+    - name: Download Tomcat Tar Ball/Binaries
+      get_url:
+        url: "{{tom_url}}"
+        dest: /tmp/tomcat-8.tar.gz
+
+
+   # 4) Création des utilisateurs et groupes pour Tomcat : 
+
+    # Créer le groupe tomcat
+    - name: Add tomcat group
+      group:
+        name: tomcat
+        state: present
+
+    # Créer l'utilisateur tomcat
+    - name: Add tomcat user
+      user:
+        name: tomcat
+        group: tomcat
+        shell: /bin/nologin
+        home: /usr/local/ #qd on creera l user, ce repertoire sera automatiquement créé
+        
+
+    # 5) Création d'un répertoire temporaire pour l'extraction : 
+
+
+    # Créer un dossier temporaire pour extraire Tomcat
+    - file:
+        path: /tmp/tomcat8
+        state: directory
+
+
+    # 6) Extraction de l'archive tomcat : 
+
+
+    # Extraire l'archive tomcat
+    - name: Extract tomcat
+      unarchive:
+        src: /tmp/tomcat-8.tar.gz
+        dest: /tmp/tomcat8/
+        remote_src: yes # la src et dest existent tt les deux sur le serveur d app
+        list_files: yes # il va lister tt les fichiers
+      register: unarchive_info #on stocke l'output dans une variable
+
+
+      #7) Affichage du nom du répertoire extrait : 
+
+    # Affiche le nom du répertoire extrait parmi la liste
+    - debug:
+        msg: "{{unarchive_info.files[0].split('/')[0]}}" #.split('/')[0] permet d'extraire seulement le nom du répertoire (et non le chemin complet)
+
+
+
+      #8)  Synchronisation du contenu extrait vers le répertoire de destination : 
+
+
+    # Synchronise le contenu extrait vers /usr/local/tomcat8 (qui est le repertoire final)
+    - name: Synchronize /tmp/tomcat8/tomcat_cont /usr/local/tomcat8.
+      synchronize:
+        src: "/tmp/tomcat8/{{unarchive_info.files[0].split('/')[0]}}/" #représente le dossier extrait contenant les fichiers Tomcat
+        dest: /usr/local/tomcat8/  #répertoire final où on veut placer tous les fichiers Tomcat, pr que Tomcat puisse les utiliser pour démarrer le serveur
+      delegate_to: "{{ inventory_hostname }}" #on spécifie quel hôte doit exécuter cette tâche (la machine cible)
+
+
+    # 9) Modification des permissions sur le répertoire Tomcat : 
+
+
+    # Change les droits du dossier Tomcat
+    - name: Change ownership of /usr/local/tomcat8
+      file:
+        path: /usr/local/tomcat8 # répertoire où Tomcat a été installé
+        owner: tomcat #proprio du rep
+        group: tomcat #grp associé à ce repertoire
+        recurse: yes # la modification des droits doit être appliquée de manière récursive à tous les fichiers et sous-répertoires présents dans /usr/local/tomcat8.
+
+
+#Il est maintenant temps de configurer le script de démarrage. 
+
+     # 10)  Déploiement du fichier de service pour Tomcat :
+
+
+    # Déploie le fichier de service systemd pour CentOS 7 (pr qu'on puisse gerer tomcat avec la cmd systemctl)
+    - name: Setup tomcat SVC file on Centos 7
+      template:
+         src: templates/epel7-svcfile.j2 #template contenant la config du service pr tomcat
+         dest: /etc/systemd/system/tomcat.service #emplacement de service pour les systèmes utilisant systemd
+         mode: "a+x" #permet de rendre le fichier ex"écutable
+      when: ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7'
+
+    # Script de service pour CentOS 6
+    - name: Setup tomcat SVC file on Centos 6
+      template:
+         src: templates/epel6-svcfile.j2
+         dest: /etc/init.d/tomcat #les services sont gérés par init.d plutôt que systemd
+         mode: "a+x"
+      when: ansible_distribution == 'CentOS' and ansible_distribution_major_version == '6'
+
+    # Script de service pour Ubuntu < 16
+    - name: Setup tomcat SVC file on ubuntu 14/15
+      template:
+         src: templates/ubuntu14_15-svcfile.j2
+         dest: /etc/init.d/tomcat
+         mode: "a+x"
+      when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version < '16'
+
+    # Fichier systemd pour Ubuntu >= 16
+    - name: Setup tomcat SVC file on ubuntu 16 and 18
+      template:
+         src: templates/ubuntu16-svcfile.j2
+         dest: /etc/systemd/system/tomcat.service
+         mode: "a+x"
+      when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version >= '16'
+
+
+
+   # 11) Ajout de Tomcat aux services au démarrage : 
+
+
+    # Ajoute tomcat aux services au démarrage (Ubuntu < 16)
+    - name: Reload tomcat svc config in ubuntu 14/15
+      command: update-rc.d tomcat defaults #configure le script init.d pour qu'il soit exécuté au démarrage du système
+      when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version < '16'
+
+    # Ajoute tomcat aux services au démarrage (CentOS 6)
+    - name: Reload tomcat svc config in Centos 6
+      command: chkconfig --add tomcat #la gestion des services se fait via chkconfig
+      when: ansible_distribution == 'CentOS' and ansible_distribution_major_version == '6'
+
+    # Recharge les services systemd (CentOS7, Ubuntu >= 16)
+    - name: just force systemd to reread configs (2.4 and above)
+      systemd:
+        daemon_reload: yes # pr appliquer les modif
+      when: ansible_distribution_major_version > '6' or ansible_distribution_major_version > '15'
+
+
+
+   # 12) Démarrage et activation de Tomcat : 
+
+
+    # Active et démarre tomcat
+    - name: Start & Enable TOmcat 8
+      service:
+        name: tomcat
+        state: started
+        enabled: yes
+
+
