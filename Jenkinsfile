@@ -23,7 +23,7 @@ pipeline {
         ARTIFACT_NAME = "vprofile-v${BUILD_ID}.war"
         AWS_S3_BUCKET = "vprofilecicdbean121"
         AWS_EB_APP_NAME = "vproapp-bean"
-        AWS_EB_ENVIRONMENT = "Vproappbean-env"
+        AWS_EB_ENVIRONMENT = "Vproapp-bean-stage-env"
         AWS_EB_APP_VERSION = "${BUILD_ID}"
         
     }
@@ -123,7 +123,7 @@ stage("Quality gate") {
                sh 'aws elasticbeanstalk update-environment --application-name $AWS_EB_APP_NAME --environment-name $AWS_EB_ENVIRONMENT --version-label $AWS_EB_APP_VERSION'
 
             }
-            
+
             }
 
         }
